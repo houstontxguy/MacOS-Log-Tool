@@ -33,6 +33,12 @@ final class DiagnosticViewModel {
     var searchText = ""
     var selectedEntryID: UUID?
 
+    // Drill-down
+    var drillDownEntries: [LogEntry] = []
+    var drillDownTitle = ""
+    var showDrillDown = false
+    var selectedAnomaly: Anomaly?
+
     private let collector = LogCollector()
     private let detector = AnomalyDetector()
 
@@ -62,6 +68,47 @@ final class DiagnosticViewModel {
 
     var isAIConfigured: Bool {
         Configuration.shared.load().aiProvider != nil
+    }
+
+    var drillDownSelectedEntry: LogEntry? {
+        guard let id = selectedEntryID, showDrillDown else { return nil }
+        return drillDownEntries.first { $0.id == id }
+    }
+
+    func drillIntoLevel(_ level: LogLevel) {
+        drillDownEntries = entries.filter { $0.level == level }
+        drillDownTitle = "\(level.rawValue.capitalized) Entries"
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoSubsystem(_ name: String) {
+        let actualName = name == "(none)" ? "" : name
+        drillDownEntries = entries.filter { $0.subsystem == actualName }
+        drillDownTitle = name
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoProcess(_ name: String) {
+        drillDownEntries = entries.filter { $0.processName == name }
+        drillDownTitle = name
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoAll() {
+        drillDownEntries = entries
+        drillDownTitle = "All Entries"
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoErrors() {
+        drillDownEntries = entries.filter { $0.level >= .error }
+        drillDownTitle = "Errors & Faults"
+        selectedEntryID = nil
+        showDrillDown = true
     }
 
     func run() {

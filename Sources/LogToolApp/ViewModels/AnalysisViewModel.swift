@@ -9,6 +9,7 @@ final class AnalysisViewModel {
     var generatedPredicate = ""
     var queryResults: [LogEntry] = []
     var isQuerying = false
+    var selectedQueryEntryID: UUID?
 
     // Log Analysis tab
     var analysisProcess = ""
@@ -19,6 +20,12 @@ final class AnalysisViewModel {
     var isAnalyzing = false
 
     var errorMessage: String?
+
+    var selectedQueryEntry: LogEntry? {
+        guard let id = selectedQueryEntryID else { return nil }
+        return queryResults.first { $0.id == id }
+    }
+
     var isAIConfigured: Bool {
         let config = Configuration.shared.load()
         return config.aiProvider != nil

@@ -29,6 +29,70 @@ struct DiagnosticResultView: View {
         .task {
             viewModel.run()
         }
+        .sheet(isPresented: $viewModel.showDrillDown) {
+            diagnosticDrillDownSheet
+        }
+        .sheet(item: $viewModel.selectedAnomaly) { anomaly in
+            AnomalyDetailView(anomaly: anomaly, entries: viewModel.entries)
+        }
+    }
+
+    private var diagnosticDrillDownSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(viewModel.drillDownTitle)
+                    .font(.headline)
+                Spacer()
+                Text("\(viewModel.drillDownEntries.count) entries")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Done") {
+                    viewModel.showDrillDown = false
+                }
+            }
+            .padding()
+
+            Divider()
+
+            VSplitView {
+                Table(viewModel.drillDownEntries, selection: $viewModel.selectedEntryID) {
+                    TableColumn("Time") { entry in
+                        Text(formatTime(entry))
+                            .font(.caption.monospaced())
+                    }
+                    .width(min: 85, ideal: 95)
+
+                    TableColumn("Level") { entry in
+                        LevelBadge(level: entry.level)
+                    }
+                    .width(min: 60, ideal: 70)
+
+                    TableColumn("Process") { entry in
+                        Text(entry.processName)
+                            .font(.caption).lineLimit(1)
+                    }
+                    .width(min: 80, ideal: 110)
+
+                    TableColumn("Message") { entry in
+                        Text(entry.eventMessage)
+                            .font(.caption).lineLimit(1)
+                    }
+                    .width(min: 200)
+                }
+
+                Group {
+                    if let selected = viewModel.drillDownSelectedEntry {
+                        EntryInspectorView(entry: selected, siblings: viewModel.drillDownEntries)
+                    } else {
+                        Text("Select an entry to inspect")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(minHeight: 150, idealHeight: 250)
+            }
+        }
+        .frame(minWidth: 700, minHeight: 500)
     }
 
     // MARK: - Header
@@ -81,10 +145,10 @@ struct DiagnosticResultView: View {
     private var summarySection: some View {
         VStack(spacing: 16) {
             HStack(spacing: 12) {
-                statCard("Total", value: "\(viewModel.totalEntries)", icon: "doc.text", color: .blue)
-                statCard("Errors", value: "\(viewModel.errorFaultCount)", icon: "exclamationmark.triangle", color: .red)
-                statCard("Anomalies", value: "\(viewModel.anomalies.count)", icon: "waveform.path.ecg", color: .purple)
-                statCard("Processes", value: "\(viewModel.uniqueProcessCount)", icon: "gearshape.2", color: .green)
+                ClickableStatCard(title: "Total", value: "\(viewModel.totalEntries)", icon: "doc.text", color: .blue, action: viewModel.drillIntoAll)
+                ClickableStatCard(title: "Errors", value: "\(viewModel.errorFaultCount)", icon: "exclamationmark.triangle", color: .red, action: viewModel.drillIntoErrors)
+                ClickableStatCard(title: "Anomalies", value: "\(viewModel.anomalies.count)", icon: "waveform.path.ecg", color: .purple, action: viewModel.drillIntoAll)
+                ClickableStatCard(title: "Processes", value: "\(viewModel.uniqueProcessCount)", icon: "gearshape.2", color: .green, action: viewModel.drillIntoAll)
             }
             .padding(.horizontal)
 
@@ -97,6 +161,19 @@ struct DiagnosticResultView: View {
                         )
                         .foregroundStyle(item.level.color)
                     }
+                    .chartOverlay { proxy in
+                        GeometryReader { geo in
+                            Rectangle().fill(.clear).contentShape(Rectangle())
+                                .onTapGesture { location in
+                                    guard let level: String = proxy.value(atX: location.x) else { return }
+                                    if let matched = LogLevel.allCases.first(where: {
+                                        $0.rawValue.capitalized == level
+                                    }) {
+                                        viewModel.drillIntoLevel(matched)
+                                    }
+                                }
+                        }
+                    }
                     .frame(height: 160)
                     .padding(.vertical, 4)
                 }
@@ -107,10 +184,8 @@ struct DiagnosticResultView: View {
                 GroupBox("Top Subsystems") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(viewModel.topSubsystems.enumerated()), id: \.offset) { _, item in
-                            HStack {
-                                Text(item.name).font(.caption).lineLimit(1)
-                                Spacer()
-                                Text("\(item.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            ClickableListRow(name: item.name, count: item.count) {
+                                viewModel.drillIntoSubsystem(item.name)
                             }
                         }
                         if viewModel.topSubsystems.isEmpty {
@@ -123,10 +198,8 @@ struct DiagnosticResultView: View {
                 GroupBox("Top Processes") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(viewModel.topProcesses.enumerated()), id: \.offset) { _, item in
-                            HStack {
-                                Text(item.name).font(.caption).lineLimit(1)
-                                Spacer()
-                                Text("\(item.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                            ClickableListRow(name: item.name, count: item.count) {
+                                viewModel.drillIntoProcess(item.name)
                             }
                         }
                         if viewModel.topProcesses.isEmpty {
@@ -146,18 +219,27 @@ struct DiagnosticResultView: View {
         GroupBox("Anomalies Detected") {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(viewModel.anomalies.enumerated()), id: \.offset) { _, anomaly in
-                    HStack(alignment: .top) {
-                        Image(systemName: severityIcon(anomaly.severity))
-                            .foregroundStyle(severityColor(anomaly.severity))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(anomaly.type.rawValue)
-                                .font(.caption.bold())
-                            Text(anomaly.description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    Button {
+                        viewModel.selectedAnomaly = anomaly
+                    } label: {
+                        HStack(alignment: .top) {
+                            Image(systemName: severityIcon(anomaly.severity))
+                                .foregroundStyle(severityColor(anomaly.severity))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(anomaly.type.rawValue)
+                                    .font(.caption.bold())
+                                Text(anomaly.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
                         }
-                        Spacer()
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
@@ -213,8 +295,8 @@ struct DiagnosticResultView: View {
 
                 if let entry = viewModel.selectedEntry {
                     Divider()
-                    LogDetailView(entry: entry)
-                        .frame(height: 200)
+                    EntryInspectorView(entry: entry, siblings: viewModel.filteredEntries)
+                        .frame(height: 300)
                 }
             }
             .padding(.vertical, 4)
@@ -279,18 +361,6 @@ struct DiagnosticResultView: View {
             parts.append("Keywords: \(preset.keywords.joined(separator: ", "))")
         }
         return parts.joined(separator: " | ")
-    }
-
-    private func statCard(_ title: String, value: String, icon: String, color: Color) -> some View {
-        GroupBox {
-            VStack(spacing: 6) {
-                Image(systemName: icon).font(.title2).foregroundStyle(color)
-                Text(value).font(.title.monospacedDigit().bold())
-                Text(title).font(.caption).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-        }
     }
 
     private func errorBanner(_ message: String) -> some View {

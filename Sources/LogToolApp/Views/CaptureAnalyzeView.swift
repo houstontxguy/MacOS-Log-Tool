@@ -28,6 +28,85 @@ struct CaptureAnalyzeView: View {
             .padding(.vertical)
         }
         .navigationTitle("Capture & Analyze")
+        .sheet(isPresented: $viewModel.showDrillDown) {
+            captureDrillDownSheet
+        }
+        .sheet(item: $viewModel.selectedAnomaly) { anomaly in
+            AnomalyDetailView(anomaly: anomaly, entries: viewModel.entries)
+        }
+    }
+
+    // MARK: - Drill-Down Sheet
+
+    private var captureDrillDownSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(viewModel.drillDownTitle)
+                    .font(.headline)
+                Spacer()
+                Text("\(viewModel.drillDownEntries.count) entries")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Done") {
+                    viewModel.showDrillDown = false
+                }
+            }
+            .padding()
+
+            Divider()
+
+            VSplitView {
+                Table(viewModel.drillDownEntries, selection: $viewModel.selectedEntryID) {
+                    TableColumn("Time") { entry in
+                        Text(formatTime(entry))
+                            .font(.caption.monospaced())
+                    }
+                    .width(min: 85, ideal: 95)
+
+                    TableColumn("Level") { entry in
+                        LevelBadge(level: entry.level)
+                    }
+                    .width(min: 60, ideal: 70)
+
+                    TableColumn("Process") { entry in
+                        Text(entry.processName)
+                            .font(.caption).lineLimit(1)
+                    }
+                    .width(min: 80, ideal: 110)
+
+                    TableColumn("Subsystem") { entry in
+                        Text(entry.subsystem)
+                            .font(.caption).lineLimit(1)
+                    }
+                    .width(min: 120, ideal: 200)
+
+                    TableColumn("Message") { entry in
+                        Text(entry.eventMessage)
+                            .font(.caption).lineLimit(1)
+                    }
+                    .width(min: 200)
+                }
+
+                Group {
+                    if let selected = viewModel.selectedEntry {
+                        EntryInspectorView(entry: selected, siblings: viewModel.drillDownEntries)
+                    } else {
+                        Text("Select an entry to inspect")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(minHeight: 150, idealHeight: 250)
+            }
+        }
+        .frame(minWidth: 700, minHeight: 500)
+    }
+
+    private func formatTime(_ entry: LogEntry) -> String {
+        guard let date = entry.date else { return entry.timestamp }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: date)
     }
 
     // MARK: - Capture Section
@@ -117,12 +196,12 @@ struct CaptureAnalyzeView: View {
 
     private var summarySection: some View {
         VStack(spacing: 16) {
-            // Stat cards
+            // Stat cards — clickable
             HStack(spacing: 12) {
-                statCard("Total Entries", value: "\(viewModel.totalEntries)", icon: "doc.text", color: .blue)
-                statCard("Errors / Faults", value: "\(viewModel.errorFaultCount)", icon: "exclamationmark.triangle", color: .red)
-                statCard("Subsystems", value: "\(viewModel.uniqueSubsystemCount)", icon: "square.grid.2x2", color: .purple)
-                statCard("Processes", value: "\(viewModel.uniqueProcessCount)", icon: "gearshape.2", color: .green)
+                ClickableStatCard(title: "Total Entries", value: "\(viewModel.totalEntries)", icon: "doc.text", color: .blue, action: viewModel.drillIntoAll)
+                ClickableStatCard(title: "Errors / Faults", value: "\(viewModel.errorFaultCount)", icon: "exclamationmark.triangle", color: .red, action: viewModel.drillIntoErrors)
+                ClickableStatCard(title: "Subsystems", value: "\(viewModel.uniqueSubsystemCount)", icon: "square.grid.2x2", color: .purple, action: viewModel.drillIntoAll)
+                ClickableStatCard(title: "Processes", value: "\(viewModel.uniqueProcessCount)", icon: "gearshape.2", color: .green, action: viewModel.drillIntoAll)
             }
             .padding(.horizontal)
 
@@ -135,6 +214,19 @@ struct CaptureAnalyzeView: View {
                     )
                     .foregroundStyle(item.level.color)
                 }
+                .chartOverlay { proxy in
+                    GeometryReader { geo in
+                        Rectangle().fill(.clear).contentShape(Rectangle())
+                            .onTapGesture { location in
+                                guard let level: String = proxy.value(atX: location.x) else { return }
+                                if let matched = LogLevel.allCases.first(where: {
+                                    $0.rawValue.capitalized == level
+                                }) {
+                                    viewModel.drillIntoLevel(matched)
+                                }
+                            }
+                    }
+                }
                 .frame(height: 200)
                 .padding(.vertical, 8)
             }
@@ -144,14 +236,8 @@ struct CaptureAnalyzeView: View {
                 GroupBox("Top 5 Subsystems") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(viewModel.topSubsystems.enumerated()), id: \.offset) { _, item in
-                            HStack {
-                                Text(item.name)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text("\(item.count)")
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
+                            ClickableListRow(name: item.name, count: item.count) {
+                                viewModel.drillIntoSubsystem(item.name)
                             }
                         }
                         if viewModel.topSubsystems.isEmpty {
@@ -164,14 +250,8 @@ struct CaptureAnalyzeView: View {
                 GroupBox("Top 5 Processes") {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(viewModel.topProcesses.enumerated()), id: \.offset) { _, item in
-                            HStack {
-                                Text(item.name)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text("\(item.count)")
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
+                            ClickableListRow(name: item.name, count: item.count) {
+                                viewModel.drillIntoProcess(item.name)
                             }
                         }
                         if viewModel.topProcesses.isEmpty {
@@ -211,23 +291,32 @@ struct CaptureAnalyzeView: View {
         GroupBox("Anomalies Detected") {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(viewModel.anomalies.enumerated()), id: \.offset) { _, anomaly in
-                    HStack(alignment: .top) {
-                        Image(systemName: severityIcon(anomaly.severity))
-                            .foregroundStyle(severityColor(anomaly.severity))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(anomaly.type.rawValue)
-                                .font(.caption.bold())
-                            Text(anomaly.description)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if !anomaly.relatedSubsystems.isEmpty {
-                                Text("Subsystems: \(anomaly.relatedSubsystems.joined(separator: ", "))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                    Button {
+                        viewModel.selectedAnomaly = anomaly
+                    } label: {
+                        HStack(alignment: .top) {
+                            Image(systemName: severityIcon(anomaly.severity))
+                                .foregroundStyle(severityColor(anomaly.severity))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(anomaly.type.rawValue)
+                                    .font(.caption.bold())
+                                Text(anomaly.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if !anomaly.relatedSubsystems.isEmpty {
+                                    Text("Subsystems: \(anomaly.relatedSubsystems.joined(separator: ", "))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
                         }
-                        Spacer()
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
@@ -290,23 +379,6 @@ struct CaptureAnalyzeView: View {
     }
 
     // MARK: - Helpers
-
-    private func statCard(_ title: String, value: String, icon: String, color: Color) -> some View {
-        GroupBox {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(color)
-                Text(value)
-                    .font(.title.monospacedDigit().bold())
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-        }
-    }
 
     private func errorBanner(_ message: String) -> some View {
         HStack {

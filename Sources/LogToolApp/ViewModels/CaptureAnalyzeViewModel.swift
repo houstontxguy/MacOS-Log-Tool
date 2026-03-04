@@ -32,6 +32,13 @@ final class CaptureAnalyzeViewModel {
     var aiUsage: AIResponse.Usage?
     var isAnalyzingAI = false
 
+    // Drill-down
+    var selectedEntryID: UUID?
+    var drillDownEntries: [LogEntry] = []
+    var drillDownTitle = ""
+    var showDrillDown = false
+    var selectedAnomaly: Anomaly?
+
     var totalEntries: Int { entries.count }
     var errorFaultCount: Int {
         entries.filter { $0.level >= .error }.count
@@ -43,9 +50,50 @@ final class CaptureAnalyzeViewModel {
         Set(entries.map(\.processName)).count
     }
 
+    var selectedEntry: LogEntry? {
+        guard let id = selectedEntryID else { return nil }
+        return drillDownEntries.first { $0.id == id }
+    }
+
     var isAIConfigured: Bool {
         let config = Configuration.shared.load()
         return config.aiProvider != nil
+    }
+
+    func drillIntoErrors() {
+        drillDownEntries = entries.filter { $0.level >= .error }
+        drillDownTitle = "Errors & Faults"
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoSubsystem(_ name: String) {
+        let actualName = name == "(none)" ? "" : name
+        drillDownEntries = entries.filter { $0.subsystem == actualName }
+        drillDownTitle = name
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoProcess(_ name: String) {
+        drillDownEntries = entries.filter { $0.processName == name }
+        drillDownTitle = name
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoLevel(_ level: LogLevel) {
+        drillDownEntries = entries.filter { $0.level == level }
+        drillDownTitle = "\(level.rawValue.capitalized) Entries"
+        selectedEntryID = nil
+        showDrillDown = true
+    }
+
+    func drillIntoAll() {
+        drillDownEntries = entries
+        drillDownTitle = "All Entries"
+        selectedEntryID = nil
+        showDrillDown = true
     }
 
     private let collector = LogCollector()

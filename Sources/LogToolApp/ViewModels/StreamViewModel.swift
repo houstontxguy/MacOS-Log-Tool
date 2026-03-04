@@ -12,11 +12,17 @@ final class StreamViewModel {
     var errorMessage: String?
     var autoScroll = true
     var maxEntries = 5000
+    var selectedEntryID: UUID?
 
     private let collector = LogCollector()
     private var streamTask: Task<Void, Never>?
 
     var entryCount: Int { entries.count }
+
+    var selectedEntry: LogEntry? {
+        guard let id = selectedEntryID else { return nil }
+        return entries.first { $0.id == id }
+    }
 
     func toggleStream() {
         if isStreaming {

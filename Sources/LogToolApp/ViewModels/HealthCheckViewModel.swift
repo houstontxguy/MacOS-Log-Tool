@@ -31,6 +31,13 @@ enum HealthSeverity: Int, Comparable {
     }
 }
 
+struct ScanResult {
+    let entries: [LogEntry]
+    let anomalies: [Anomaly]
+    let errorCount: Int
+    let faultCount: Int
+}
+
 struct HealthIssue: Identifiable {
     let id = UUID()
     let area: String
@@ -50,6 +57,10 @@ final class HealthCheckViewModel {
     var scanComplete = false
     var errorMessage: String?
     var minutes: Int = 15
+
+    // Scan data retained for drill-down
+    var scanResults: [String: ScanResult] = [:]
+    var selectedIssue: HealthIssue?
 
     // AI
     var aiSummary = ""
@@ -76,6 +87,7 @@ final class HealthCheckViewModel {
         isScanning = true
         scanComplete = false
         issues = []
+        scanResults = [:]
         scanProgress = 0
         errorMessage = nil
         aiSummary = ""
@@ -92,6 +104,13 @@ final class HealthCheckViewModel {
                     let errorCount = entries.filter { $0.level >= .error }.count
                     let faultCount = entries.filter { $0.level >= .fault }.count
                     let anomalyCount = anomalies.count
+
+                    scanResults[preset.id] = ScanResult(
+                        entries: entries,
+                        anomalies: anomalies,
+                        errorCount: errorCount,
+                        faultCount: faultCount
+                    )
 
                     let severity: HealthSeverity
                     let title: String

@@ -68,10 +68,24 @@ struct AnalysisView: View {
             }
 
             if !viewModel.queryResults.isEmpty {
-                List(viewModel.queryResults) { entry in
-                    LogEntryRow(entry: entry)
+                VSplitView {
+                    List(viewModel.queryResults, selection: $viewModel.selectedQueryEntryID) { entry in
+                        LogEntryRow(entry: entry)
+                            .tag(entry.id)
+                    }
+                    .listStyle(.plain)
+
+                    Group {
+                        if let selected = viewModel.selectedQueryEntry {
+                            EntryInspectorView(entry: selected, siblings: viewModel.queryResults)
+                        } else {
+                            Text("Select an entry to inspect")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .frame(minHeight: 120, idealHeight: 220)
                 }
-                .listStyle(.plain)
             } else if !viewModel.isQuerying && !viewModel.generatedPredicate.isEmpty {
                 ContentUnavailableView(
                     "No Results",

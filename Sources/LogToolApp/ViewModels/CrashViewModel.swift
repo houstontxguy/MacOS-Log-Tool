@@ -8,10 +8,16 @@ final class CrashViewModel {
     var selectedCrash: CrashReport?
     var correlatedLogs: [LogEntry] = []
     var analysisResult: String?
+    var selectedLogEntryID: UUID?
     var isLoading = false
     var isCorrelating = false
     var isAnalyzing = false
     var errorMessage: String?
+
+    var selectedLogEntry: LogEntry? {
+        guard let id = selectedLogEntryID else { return nil }
+        return correlatedLogs.first { $0.id == id }
+    }
 
     private let parser = CrashReportParser()
     private let collector = LogCollector()

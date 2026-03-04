@@ -93,18 +93,31 @@ struct CrashView: View {
 
                             if !viewModel.correlatedLogs.isEmpty {
                                 GroupBox("Correlated Logs (\(viewModel.correlatedLogs.count))") {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        ForEach(viewModel.correlatedLogs.prefix(100)) { entry in
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        List(viewModel.correlatedLogs.prefix(100).map { $0 }, id: \.id, selection: $viewModel.selectedLogEntryID) { entry in
                                             LogEntryRow(entry: entry)
+                                                .tag(entry.id)
                                         }
+                                        .listStyle(.plain)
+                                        .frame(height: min(CGFloat(viewModel.correlatedLogs.count) * 28, 300))
+
                                         if viewModel.correlatedLogs.count > 100 {
                                             Text("... \(viewModel.correlatedLogs.count - 100) more entries")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
+                                                .padding(.top, 4)
                                         }
                                     }
                                 }
                                 .padding(.horizontal)
+
+                                if let logEntry = viewModel.selectedLogEntry {
+                                    GroupBox("Entry Inspector") {
+                                        EntryInspectorView(entry: logEntry, siblings: viewModel.correlatedLogs)
+                                            .frame(maxHeight: 400)
+                                    }
+                                    .padding(.horizontal)
+                                }
                             }
 
                             if let analysis = viewModel.analysisResult {

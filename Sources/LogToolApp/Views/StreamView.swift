@@ -82,19 +82,33 @@ struct StreamView: View {
                 .background(.orange.opacity(0.1))
             }
 
-            // Log entries
-            ScrollViewReader { proxy in
-                List(viewModel.entries) { entry in
-                    LogEntryRow(entry: entry)
-                        .id(entry.id)
-                }
-                .listStyle(.plain)
-                .font(.system(.caption, design: .monospaced))
-                .onChange(of: viewModel.entries.count) {
-                    if viewModel.autoScroll, let last = viewModel.entries.last {
-                        proxy.scrollTo(last.id, anchor: .bottom)
+            // Log entries with detail pane
+            VSplitView {
+                ScrollViewReader { proxy in
+                    List(viewModel.entries, selection: $viewModel.selectedEntryID) { entry in
+                        LogEntryRow(entry: entry)
+                            .id(entry.id)
+                            .tag(entry.id)
+                    }
+                    .listStyle(.plain)
+                    .font(.system(.caption, design: .monospaced))
+                    .onChange(of: viewModel.entries.count) {
+                        if viewModel.autoScroll, let last = viewModel.entries.last {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
                     }
                 }
+
+                Group {
+                    if let selected = viewModel.selectedEntry {
+                        EntryInspectorView(entry: selected, siblings: viewModel.entries)
+                    } else {
+                        Text("Select an entry to inspect")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(minHeight: 120, idealHeight: 220)
             }
         }
         .navigationTitle("Live Stream")

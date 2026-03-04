@@ -20,6 +20,14 @@ struct HealthCheckView: View {
             .padding(.vertical)
         }
         .navigationTitle("Health Check")
+        .sheet(item: $viewModel.selectedIssue) { issue in
+            if let result = viewModel.scanResults[issue.presetID] {
+                HealthIssueDrillDownView(issue: issue, scanResult: result)
+            } else {
+                Text("No scan data available for this area.")
+                    .padding()
+            }
+        }
     }
 
     // MARK: - Header
@@ -135,47 +143,57 @@ struct HealthCheckView: View {
     }
 
     private func issueRow(_ issue: HealthIssue) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                Image(systemName: issue.severity.icon)
-                    .foregroundStyle(severityColor(issue.severity))
-                    .font(.title3)
+        Button {
+            viewModel.selectedIssue = issue
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
+                    Image(systemName: issue.severity.icon)
+                        .foregroundStyle(severityColor(issue.severity))
+                        .font(.title3)
 
-                Image(systemName: issue.icon)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(issue.area)
-                        .font(.body.bold())
-                    Text(issue.title)
-                        .font(.caption)
+                    Image(systemName: issue.icon)
                         .foregroundStyle(.secondary)
-                }
+                        .frame(width: 20)
 
-                Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(issue.area)
+                            .font(.body.bold())
+                        Text(issue.title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                if issue.errorCount > 0 {
-                    Text("\(issue.errorCount) errors")
+                    Spacer()
+
+                    if issue.errorCount > 0 {
+                        Text("\(issue.errorCount) errors")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.orange, in: Capsule())
+                    }
+
+                    Text(issue.severity.label)
                         .font(.caption.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.orange, in: Capsule())
+                        .foregroundStyle(severityColor(issue.severity))
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
 
-                Text(issue.severity.label)
-                    .font(.caption.bold())
-                    .foregroundStyle(severityColor(issue.severity))
+                Text(issue.description)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 30)
             }
-
-            Text(issue.description)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.leading, 30)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
+        .buttonStyle(.plain)
     }
 
     // MARK: - AI

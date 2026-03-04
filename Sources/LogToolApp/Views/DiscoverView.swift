@@ -188,7 +188,7 @@ struct DiscoverView: View {
 
             Group {
                 if let entry = viewModel.selectedEntry {
-                    LogDetailView(entry: entry)
+                    EntryInspectorView(entry: entry, siblings: viewModel.drillDownEntries)
                 } else {
                     Text("Select an entry to view details")
                         .foregroundStyle(.secondary)

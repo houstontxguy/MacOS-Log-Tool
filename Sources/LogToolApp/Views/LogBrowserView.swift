@@ -75,7 +75,7 @@ struct LogBrowserView: View {
             // Detail pane
             Group {
                 if let selected = viewModel.selectedEntry {
-                    LogDetailView(entry: selected)
+                    EntryInspectorView(entry: selected, siblings: viewModel.filteredEntries)
                 } else {
                     Text("Select a log entry to view details")
                         .foregroundStyle(.secondary)
