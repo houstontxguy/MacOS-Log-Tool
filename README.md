@@ -42,9 +42,13 @@ A native macOS application and CLI for unified log analysis with optional AI-pow
 
 ## Installation
 
-### From Release
+### From Release (Recommended)
 
-Download the latest `LogToolApp.zip` from [Releases](../../releases), unzip, and drag to `/Applications`.
+1. Download **LogTool-v1.0.0.dmg** from [Releases](../../releases)
+2. Open the DMG and drag **Log Tool.app** to Applications
+3. Optionally copy `logtool` CLI binary to `/usr/local/bin`
+
+The DMG is code-signed and notarized by Apple — no Gatekeeper warnings.
 
 ### Build from Source
 
@@ -101,15 +105,58 @@ swift run logtool analyze --last 15m --context "investigating slowness"
 
 ## AI Provider Setup
 
-The tool supports three AI providers for log analysis:
+AI features are **optional** — the app works fully without them. When configured, AI powers log analysis, crash diagnosis, natural language queries, and health check summaries.
 
-| Provider | Model | Setup |
-|----------|-------|-------|
-| **Claude** | claude-sonnet-4-20250514 | `logtool config set ai-provider claude` + API key in Settings |
-| **OpenAI** | gpt-4o | `logtool config set ai-provider openai` + API key in Settings |
-| **Ollama** | llama3.1 (local) | `logtool config set ai-provider ollama` — no API key needed |
+### Option 1: Claude (Anthropic) — Recommended
 
-API keys are stored securely in the macOS Keychain.
+Best analysis quality with 200K token context window.
+
+1. Go to [console.anthropic.com](https://console.anthropic.com/) and create an account
+2. Navigate to **API Keys** → **Create Key**
+3. Copy the key (starts with `sk-ant-...`)
+4. In Log Tool: **Settings** (Cmd+,) → **AI** tab → select **Claude** → **Save**
+5. Go to **API Keys** tab → paste your key → **Save Key**
+
+> **Already using Claude Code CLI?** You can use the same Anthropic API key. Find it with `echo $ANTHROPIC_API_KEY` in your terminal, or check your Claude Code settings.
+
+**Cost:** Pay-per-use based on tokens. A typical log analysis costs ~$0.01-0.05. See [Anthropic pricing](https://www.anthropic.com/pricing#702702).
+
+### Option 2: OpenAI (GPT-4o)
+
+1. Go to [platform.openai.com](https://platform.openai.com/) and create an account
+2. Navigate to **API Keys** → **Create new secret key**
+3. Copy the key (starts with `sk-...`)
+4. In Log Tool: **Settings** (Cmd+,) → **AI** tab → select **OpenAI** → **Save**
+5. Go to **API Keys** tab → paste your key → **Save Key**
+
+**Cost:** Pay-per-use. See [OpenAI pricing](https://openai.com/pricing).
+
+### Option 3: Ollama (Free, Local, Private)
+
+Runs AI models locally on your Mac — no API key, no data sent anywhere.
+
+1. Install Ollama: [ollama.com/download](https://ollama.com/download)
+2. Pull a model: `ollama pull llama3.1` (or `mistral`, `codellama`, etc.)
+3. In Log Tool: **Settings** (Cmd+,) → **AI** tab → select **Ollama** → **Save**
+
+> **Note:** Requires ~8GB RAM for llama3.1. Smaller models like `phi3` work on less.
+
+### Important: API Keys vs Consumer Subscriptions
+
+A **ChatGPT Plus** or **Claude Pro** subscription does **not** include API access. API keys are separate:
+
+| What you have | Can you use it? |
+|---|---|
+| Anthropic API key (`sk-ant-...`) | Yes — use Claude provider |
+| Claude Code CLI key (`ANTHROPIC_API_KEY`) | Yes — same key, use Claude provider |
+| OpenAI API key (`sk-...`) | Yes — use OpenAI provider |
+| Claude Pro/Team subscription (claude.ai) | No — no API key included. Sign up at [console.anthropic.com](https://console.anthropic.com/) for API access (free tier available with $5 credit) |
+| ChatGPT Plus subscription (chatgpt.com) | No — no API key included. Sign up at [platform.openai.com](https://platform.openai.com/) for API access (pay-per-use) |
+| Ollama installed locally | Yes — free, no key needed |
+
+API keys are stored securely in the macOS Keychain (encrypted, never written to disk).
+
+See [AI Integration docs](docs/ai-integration.md) for full details on models, prompt templates, and token usage.
 
 ## Documentation
 
