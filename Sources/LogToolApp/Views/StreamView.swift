@@ -3,6 +3,7 @@ import LogToolCore
 
 struct StreamView: View {
     @State private var viewModel = StreamViewModel()
+    @Environment(ActiveSubsystemPoller.self) private var poller: ActiveSubsystemPoller?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,19 +21,25 @@ struct StreamView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "gearshape.2")
                         .foregroundStyle(.secondary)
-                    TextField("Process", text: $viewModel.process)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 120)
-                        .disabled(viewModel.isStreaming)
+                    SuggestionTextField(
+                        placeholder: "Process",
+                        text: $viewModel.process,
+                        suggestions: poller?.processSuggestions ?? DiagnosticPreset.commonProcesses,
+                        isDisabled: viewModel.isStreaming
+                    )
+                    .frame(width: 140, height: 24)
                 }
 
                 HStack(spacing: 4) {
                     Image(systemName: "shippingbox")
                         .foregroundStyle(.secondary)
-                    TextField("Subsystem", text: $viewModel.subsystem)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 180)
-                        .disabled(viewModel.isStreaming)
+                    SuggestionTextField(
+                        placeholder: "Subsystem",
+                        text: $viewModel.subsystem,
+                        suggestions: poller?.subsystemSuggestions ?? DiagnosticPreset.commonSubsystems,
+                        isDisabled: viewModel.isStreaming
+                    )
+                    .frame(width: 200, height: 24)
                 }
 
                 Picker("Level", selection: $viewModel.selectedLevel) {

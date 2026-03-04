@@ -8,22 +8,30 @@ struct FilterBar: View {
     @Binding var timeRange: String
     var onFetch: () -> Void
 
+    @Environment(ActiveSubsystemPoller.self) private var poller: ActiveSubsystemPoller?
+
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 4) {
                 Image(systemName: "gearshape.2")
                     .foregroundStyle(.secondary)
-                TextField("Process", text: $process)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 140)
+                SuggestionTextField(
+                    placeholder: "Process",
+                    text: $process,
+                    suggestions: poller?.processSuggestions ?? DiagnosticPreset.commonProcesses
+                )
+                .frame(width: 160, height: 24)
             }
 
             HStack(spacing: 4) {
                 Image(systemName: "shippingbox")
                     .foregroundStyle(.secondary)
-                TextField("Subsystem", text: $subsystem)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                SuggestionTextField(
+                    placeholder: "Subsystem",
+                    text: $subsystem,
+                    suggestions: poller?.subsystemSuggestions ?? DiagnosticPreset.commonSubsystems
+                )
+                .frame(width: 220, height: 24)
             }
 
             Picker("Level", selection: $selectedLevel) {
