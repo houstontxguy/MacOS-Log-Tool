@@ -2,6 +2,7 @@ import SwiftUI
 import LogToolCore
 
 struct AnomalyDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     let anomaly: Anomaly
     let entries: [LogEntry]
     @State private var selectedEntryID: UUID?
@@ -57,6 +58,8 @@ struct AnomalyDetailView: View {
                     Spacer()
 
                     severityBadge
+
+                    Button("Close") { dismiss() }
                 }
                 .padding(.vertical, 4)
             }

@@ -2,6 +2,7 @@ import SwiftUI
 import LogToolCore
 
 struct HealthIssueDrillDownView: View {
+    @Environment(\.dismiss) private var dismiss
     let issue: HealthIssue
     let scanResult: ScanResult
 
@@ -158,6 +159,8 @@ struct HealthIssueDrillDownView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(severityColor, in: Capsule())
+
+            Button("Close") { dismiss() }
         }
         .padding()
     }
